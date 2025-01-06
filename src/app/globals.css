@@ -5,17 +5,62 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent: #9333ea;
+  --accent-light: #a855f7;
+  --accent-dark: #7e22ce;
+  --gradient-start: #4f46e5;
+  --gradient-middle: #9333ea;
+  --gradient-end: #ec4899;
+  --shadow-color: rgba(147, 51, 234, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0a0a0f;
+    --foreground: #f8f9fa;
+    --accent: #a855f7;
+    --accent-light: #c084fc;
+    --accent-dark: #9333ea;
+    --gradient-start: #6366f1;
+    --gradient-middle: #a855f7;
+    --gradient-end: #f472b6;
+    --shadow-color: rgba(168, 85, 247, 0.3);
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      to right,
+      var(--gradient-start),
+      var(--gradient-middle),
+      var(--gradient-end)
+    );
+  }
+  
+  .gradient-bg {
+    background-image: linear-gradient(
+      to bottom right,
+      var(--gradient-start),
+      var(--gradient-middle),
+      var(--gradient-end)
+    );
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 20px var(--shadow-color);
+  }
 }

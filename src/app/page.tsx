@@ -1,101 +1,130 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Movie, TVShow } from '@/types/tmdb';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [tvShows, setTvShows] = useState<TVShow[]>([]);
+  const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
+  const [isLoading, setIsLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const fetchTrending = async () => {
+      setIsLoading(true);
+      try {
+        const baseUrl = 'https://api.themoviedb.org/3';
+        const [moviesRes, tvRes] = await Promise.all([
+          fetch(`${baseUrl}/trending/movie/week?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}`),
+          fetch(`${baseUrl}/trending/tv/week?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}`)
+        ]);
+
+        const moviesData = await moviesRes.json();
+        const tvData = await tvRes.json();
+
+        setMovies(moviesData.results);
+        setTvShows(tvData.results);
+      } catch (error) {
+        console.error('Error fetching trending content:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrending();
+  }, []);
+
+  return (
+    <main className="min-h-screen p-4 md:p-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-12"
+      >
+        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+          Pirate Play
+        </h1>
+        <p className="text-gray-400 mt-2">Discover what's popular right now</p>
+      </motion.div>
+
+      {/* Tab Buttons */}
+      <div className="flex justify-center gap-4 mb-8">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={`px-6 py-2 rounded-full font-medium transition-colors ${
+            activeTab === 'movies'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+          onClick={() => setActiveTab('movies')}
+        >
+          Movies
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={`px-6 py-2 rounded-full font-medium transition-colors ${
+            activeTab === 'tv'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+          onClick={() => setActiveTab('tv')}
+        >
+          TV Shows
+        </motion.button>
+      </div>
+
+      {/* Content Grid */}
+      {isLoading ? (
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      ) : (
+        <motion.div
+          layout
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          {(activeTab === 'movies' ? movies : tvShows).map((item: any) => (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-shadow hover:shadow-xl"
+            >
+              <div className="aspect-[2/3] relative">
+                <img
+                  src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+                  alt={item.title || item.name}
+                  className="object-cover w-full h-full"
+                  loading="lazy"
+                />
+                <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded-full text-sm backdrop-blur-sm">
+                  ⭐ {item.vote_average.toFixed(1)}
+                </div>
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-lg truncate">
+                  {item.title || item.name}
+                </h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  {new Date(
+                    item.release_date || item.first_air_date
+                  ).getFullYear()}
+                </p>
+                <p className="text-gray-400 text-sm mt-2 line-clamp-2">
+                  {item.overview}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+    </main>
   );
 }
