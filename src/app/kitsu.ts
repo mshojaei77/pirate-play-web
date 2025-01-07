@@ -81,6 +81,45 @@ export async function getTrendingAnime(limit: number = 20) {
   }
 }
 
+export async function getPopularThisYear(limit: number = 20) {
+  const currentYear = new Date().getFullYear();
+  try {
+    const response = await fetch(
+      `${KITSU_API_BASE}/anime?filter[seasonYear]=${currentYear}&sort=-userCount&page[limit]=${limit}`,
+      {
+        headers: {
+          'Accept': 'application/vnd.api+json',
+          'Content-Type': 'application/vnd.api+json'
+        }
+      }
+    );
+    const data: KitsuResponse<KitsuAnime> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching popular anime this year:', error);
+    throw error;
+  }
+}
+
+export async function getMostPopularAllTime(limit: number = 20) {
+  try {
+    const response = await fetch(
+      `${KITSU_API_BASE}/anime?sort=-userCount&page[limit]=${limit}`,
+      {
+        headers: {
+          'Accept': 'application/vnd.api+json',
+          'Content-Type': 'application/vnd.api+json'
+        }
+      }
+    );
+    const data: KitsuResponse<KitsuAnime> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching most popular anime:', error);
+    throw error;
+  }
+}
+
 export async function getAnimeDetails(id: string) {
   try {
     const response = await fetch(
