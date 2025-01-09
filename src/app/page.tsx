@@ -5,12 +5,11 @@ import { motion } from 'framer-motion';
 import { Movie, TVShow } from '@/types/tmdb';
 import Image from 'next/image';
 import { FiSearch, FiFilter, FiPlay, FiPlus, FiStar, FiChevronLeft, FiChevronRight, FiTrendingUp, FiCalendar, FiDollarSign, FiUsers } from 'react-icons/fi';
-import { getTrendingAnime, getPopularThisYear, getMostPopularAllTime } from '@/app/kitsu';
-import ContentSection from '@/components/ContentSection';
 import { fetchAllContent } from '@/app/tmdb';
+import ContentSection from '@/components/ContentSection';
 
 // Add new sort options type
-type SortOption = 'trending' | 'popular' | 'rating' | 'releaseDate' | 'revenue' | 'runtime' | 'voteCount';
+type SortOption = 'trending' | 'popular' | 'rating' | 'releaseDate' | 'runtime';
 
 // Add new filter types
 type FilterOptions = {
@@ -45,11 +44,9 @@ const GENRES = [
 ];
 
 export default function Home() {
-  const [anime, setAnime] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'movies' | 'tv' | 'anime'>('movies');
+  const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('all');
   const [allContent, setAllContent] = useState<{
     movies: any[];
     tvShows: any[];
@@ -70,41 +67,8 @@ export default function Home() {
     const loadContent = async () => {
       setIsLoading(true);
       try {
-        if (activeTab === 'anime') {
-          const [trendingData, thisYearData, allTimeData] = await Promise.all([
-            getTrendingAnime(250),
-            getPopularThisYear(250),
-            getMostPopularAllTime(250)
-          ]);
-          
-          // Ensure we have data before trying to iterate
-          const uniqueAnime = new Map();
-          
-          // Safely combine all data arrays
-          const allData = [
-            ...(trendingData?.data || []),
-            ...(thisYearData?.data || []),
-            ...(allTimeData?.data || [])
-          ];
-          
-          // Deduplicate anime data
-          allData.forEach(item => {
-            if (item && item.id) {
-              uniqueAnime.set(item.id, {
-                ...item,
-                // Add these properties to match the structure expected by the sorting functions
-                popularity: parseInt(item.attributes?.userCount || '0'),
-                vote_average: parseFloat(item.attributes?.averageRating || '0'),
-                release_date: item.attributes?.startDate
-              });
-            }
-          });
-          
-          setAnime(Array.from(uniqueAnime.values()));
-        } else {
-          const content = await fetchAllContent();
-          setAllContent(content);
-        }
+        const content = await fetchAllContent();
+        setAllContent(content);
       } catch (error) {
         console.error('Error loading content:', error);
       } finally {
@@ -146,9 +110,7 @@ export default function Home() {
     
     const content = activeTab === 'movies' 
       ? allContent.movies 
-      : activeTab === 'tv' 
-      ? allContent.tvShows 
-      : anime;
+      : allContent.tvShows;
 
     // Apply filters first
     const filteredContent = applyFilters(content);
@@ -174,17 +136,9 @@ export default function Home() {
           const dateB = new Date(b.metadata?.release_date || b.metadata?.first_air_date || 0);
           return dateB.getTime() - dateA.getTime();
         });
-      case 'revenue':
-        return [...filteredContent].sort((a, b) => 
-          (b.metadata?.revenue || 0) - (a.metadata?.revenue || 0)
-        );
       case 'runtime':
         return [...filteredContent].sort((a, b) => 
           (b.metadata?.runtime || 0) - (a.metadata?.runtime || 0)
-        );
-      case 'voteCount':
-        return [...filteredContent].sort((a, b) => 
-          (b.metadata?.vote_count || 0) - (a.metadata?.vote_count || 0)
         );
       default:
         return filteredContent;
@@ -259,18 +213,6 @@ export default function Home() {
           >
             TV Shows
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`px-6 py-2 rounded-full font-medium transition-colors ${
-              activeTab === 'anime'
-                ? 'gradient-bg text-[var(--foreground)]'
-                : 'bg-[var(--background)] text-[var(--foreground)] opacity-70 hover:opacity-100'
-            }`}
-            onClick={() => setActiveTab('anime')}
-          >
-            Anime
-          </motion.button>
         </div>
 
         <motion.div
@@ -288,35 +230,19 @@ export default function Home() {
             </button>
 
             <button 
+              className={`filter-button ${sortOption === 'releaseDate' ? 'gradient-bg' : ''}`}
+              onClick={() => setSortOption('releaseDate')}
+            >
+              <FiCalendar className="inline mr-2" />
+              Recent
+            </button>
+
+            <button 
               className={`filter-button ${sortOption === 'rating' ? 'gradient-bg' : ''}`}
               onClick={() => setSortOption('rating')}
             >
               <FiStar className="inline mr-2" />
               Top Rated
-            </button>
-
-            <button 
-              className={`filter-button ${sortOption === 'releaseDate' ? 'gradient-bg' : ''}`}
-              onClick={() => setSortOption('releaseDate')}
-            >
-              <FiCalendar className="inline mr-2" />
-              Release Date
-            </button>
-
-            <button 
-              className={`filter-button ${sortOption === 'revenue' ? 'gradient-bg' : ''}`}
-              onClick={() => setSortOption('revenue')}
-            >
-              <FiDollarSign className="inline mr-2" />
-              Revenue
-            </button>
-
-            <button 
-              className={`filter-button ${sortOption === 'voteCount' ? 'gradient-bg' : ''}`}
-              onClick={() => setSortOption('voteCount')}
-            >
-              <FiUsers className="inline mr-2" />
-              Most Voted
             </button>
           </div>
         </motion.div>
@@ -462,9 +388,11 @@ export default function Home() {
       <ContentSection
         title={`${sortOption === 'trending' 
           ? 'Trending'
-          : sortOption === 'popular'
-          ? 'Most Popular'
-          : 'Latest'} ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+          : sortOption === 'rating'
+          ? 'Top'
+          : sortOption === 'releaseDate'
+          ? 'Recent'
+          : 'Trending'} ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
         isLoading={isLoading}
         activeTab={activeTab}
         content={getSortedContent()}
