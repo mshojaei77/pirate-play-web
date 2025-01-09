@@ -48,9 +48,7 @@ export default function ContentSection({ title, isLoading, activeTab, content }:
 
       <motion.div
         layout
-        id={`content-scroll-${sectionId}`}
-        className="flex gap-2 overflow-x-hidden scroll-smooth"
-        style={{ scrollBehavior: 'smooth' }}
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
       >
         {content.map((item: any) => (
           <motion.div
@@ -59,7 +57,7 @@ export default function ContentSection({ title, isLoading, activeTab, content }:
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-shrink-0 w-[calc(100%/6-1rem)] bg-[var(--background)] rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+            className="bg-[var(--background)] rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300"
           >
             <div className="aspect-[2/3] relative">
               <img
@@ -108,26 +106,6 @@ export default function ContentSection({ title, isLoading, activeTab, content }:
           </motion.div>
         ))}
       </motion.div>
-
-      <button 
-        className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70 transition-colors"
-        onClick={() => {
-          const container = document.getElementById(`content-scroll-${sectionId}`);
-          if (container) container.scrollLeft -= container.clientWidth;
-        }}
-      >
-        <FiChevronLeft size={24} />
-      </button>
-
-      <button 
-        className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70 transition-colors"
-        onClick={() => {
-          const container = document.getElementById(`content-scroll-${sectionId}`);
-          if (container) container.scrollLeft += container.clientWidth;
-        }}
-      >
-        <FiChevronRight size={24} />
-      </button>
     </div>
   );
 }

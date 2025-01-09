@@ -28,6 +28,7 @@ interface KitsuAnime {
     startDate: string;
     endDate: string;
     synopsis: string;
+    userCount: string;
     coverImage: {
       original: string;
       large: string;
@@ -43,7 +44,7 @@ interface KitsuAnime {
   };
 }
 
-export async function searchAnime(query: string, limit: number = 20) {
+export async function searchAnime(query: string, limit: number = 250) {
   try {
     const response = await fetch(
       `${KITSU_API_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}`,
@@ -62,10 +63,10 @@ export async function searchAnime(query: string, limit: number = 20) {
   }
 }
 
-export async function getTrendingAnime(limit: number = 20) {
+export async function getTrendingAnime(limit: number = 250) {
   try {
     const response = await fetch(
-      `${KITSU_API_BASE}/anime?filter[averageRating]=80..100&sort=-startDate&page[limit]=${limit}`,
+      `${KITSU_API_BASE}/trending/anime?page[limit]=${limit}`,
       {
         headers: {
           'Accept': 'application/vnd.api+json',
@@ -76,12 +77,12 @@ export async function getTrendingAnime(limit: number = 20) {
     const data: KitsuResponse<KitsuAnime> = await response.json();
     return data;
   } catch (error) {
-    console.error('Error fetching high-rated anime:', error);
+    console.error('Error fetching trending anime:', error);
     throw error;
   }
 }
 
-export async function getPopularThisYear(limit: number = 20) {
+export async function getPopularThisYear(limit: number = 250) {
   const currentYear = new Date().getFullYear();
   try {
     const response = await fetch(
@@ -101,7 +102,7 @@ export async function getPopularThisYear(limit: number = 20) {
   }
 }
 
-export async function getMostPopularAllTime(limit: number = 20) {
+export async function getMostPopularAllTime(limit: number = 250) {
   try {
     const response = await fetch(
       `${KITSU_API_BASE}/anime?sort=-userCount&page[limit]=${limit}`,
