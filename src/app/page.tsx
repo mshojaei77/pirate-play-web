@@ -248,15 +248,14 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* Add Filter Controls with updated styling */}
+      {/* Filter Controls */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap gap-4 justify-center mb-6 text-[var(--foreground)]"
+        className="flex flex-wrap gap-4 justify-center mb-6"
       >
         {/* Year Range */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-70">Year:</span>
+        <div className="flex items-center bg-[var(--background)] border border-green-500/20 rounded-full hover:border-green-500/40 transition-colors">
           <input
             type="number"
             min="1900"
@@ -266,10 +265,12 @@ export default function Home() {
               ...prev,
               yearRange: { ...prev.yearRange, start: parseInt(e.target.value) }
             }))}
-            className="w-20 px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+            className="w-20 px-4 py-2 bg-transparent
+            text-[var(--foreground)] focus:outline-none
+            transition-colors text-sm"
+            placeholder="Year"
           />
-          <span className="opacity-70">-</span>
+          <span className="text-[var(--foreground)]/50 px-1">-</span>
           <input
             type="number"
             min="1900"
@@ -279,109 +280,98 @@ export default function Home() {
               ...prev,
               yearRange: { ...prev.yearRange, end: parseInt(e.target.value) }
             }))}
-            className="w-20 px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+            className="w-20 px-4 py-2 bg-transparent
+            text-[var(--foreground)] focus:outline-none
+            transition-colors text-sm"
+            placeholder="Year"
           />
         </div>
 
         {/* Rating Range */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-70">Rating:</span>
+        <div className="flex items-center bg-[var(--background)] border border-green-500/20 rounded-full hover:border-green-500/40 transition-colors">
           <select
             value={filters.ratingRange.min}
             onChange={(e) => setFilters(prev => ({
               ...prev,
               ratingRange: { ...prev.ratingRange, min: parseInt(e.target.value) }
             }))}
-            className="px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+            className="w-24 px-4 py-2 bg-transparent
+            text-[var(--foreground)] focus:outline-none
+            transition-colors text-sm cursor-pointer appearance-none"
           >
             {[...Array(11)].map((_, i) => (
-              <option key={i} value={i} className="bg-[var(--background)]">{i}</option>
+              <option key={i} value={i} className="bg-[var(--background)]">{i} ★</option>
             ))}
           </select>
-          <span className="opacity-70">-</span>
           <select
             value={filters.ratingRange.max}
             onChange={(e) => setFilters(prev => ({
               ...prev,
               ratingRange: { ...prev.ratingRange, max: parseInt(e.target.value) }
             }))}
-            className="px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+            className="w-24 px-4 py-2 bg-transparent
+            text-[var(--foreground)] focus:outline-none
+            transition-colors text-sm cursor-pointer appearance-none"
           >
             {[...Array(11)].map((_, i) => (
-              <option key={i} value={i} className="bg-[var(--background)]">{i}</option>
+              <option key={i} value={i} className="bg-[var(--background)]">★ {i}</option>
             ))}
           </select>
         </div>
 
-        {/* Language */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-70">Language:</span>
-          <select
-            value={filters.language}
-            onChange={(e) => setFilters(prev => ({ ...prev, language: e.target.value }))}
-            className="px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors min-w-[120px]"
-          >
-            <option value="all" className="bg-[var(--background)]">All Languages</option>
-            <option value="en" className="bg-[var(--background)]">English</option>
-            <option value="ja" className="bg-[var(--background)]">Japanese</option>
-            <option value="ko" className="bg-[var(--background)]">Korean</option>
-            <option value="es" className="bg-[var(--background)]">Spanish</option>
-          </select>
-        </div>
+        {/* Other Filters - using consistent styling */}
+        <select
+          value={filters.language}
+          onChange={(e) => setFilters(prev => ({ ...prev, language: e.target.value }))}
+          className="px-6 py-2 rounded-full bg-[var(--background)]
+          border border-green-500/20 
+          text-[var(--foreground)] focus:border-green-500 focus:outline-none 
+          transition-colors text-sm min-w-[140px] hover:border-green-500/40 cursor-pointer appearance-none"
+        >
+          <option value="all" className="bg-[var(--background)]">Language</option>
+          <option value="en" className="bg-[var(--background)]">English</option>
+          <option value="ja" className="bg-[var(--background)]">Japanese</option>
+          <option value="ko" className="bg-[var(--background)]">Korean</option>
+          <option value="es" className="bg-[var(--background)]">Spanish</option>
+        </select>
 
-        {/* Min Votes */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-70">Min Votes:</span>
-          <select
-            value={filters.votesRange.min}
-            onChange={(e) => setFilters(prev => ({
-              ...prev,
-              votesRange: { ...prev.votesRange, min: parseInt(e.target.value) }
-            }))}
-            className="px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors min-w-[100px]"
-          >
-            <option value="0" className="bg-[var(--background)]">Any</option>
-            {[1, 2, 3, 4, 5, 10, 15, 20, 25].map((k) => (
-              <option 
-                key={k} 
-                value={k * 1000} 
-                className="bg-[var(--background)]"
-              >
-                {k}k+ votes
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filters.votesRange.min}
+          onChange={(e) => setFilters(prev => ({
+            ...prev,
+            votesRange: { ...prev.votesRange, min: parseInt(e.target.value) }
+          }))}
+          className="px-6 py-2 rounded-full bg-[var(--background)]
+          border border-green-500/20 
+          text-[var(--foreground)] focus:border-green-500 focus:outline-none 
+          transition-colors text-sm min-w-[140px] hover:border-green-500/40 cursor-pointer appearance-none"
+        >
+          <option value="0" className="bg-[var(--background)]">Min Votes</option>
+          {[1, 2, 3, 4, 5, 10, 15, 20, 25].map((k) => (
+            <option key={k} value={k * 1000} className="bg-[var(--background)]">
+              {k}k+
+            </option>
+          ))}
+        </select>
 
-        {/* Genre Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-70">Genre:</span>
-          <select
-            value={filters.genres[0] || 'all'} // Since we're simplifying to single genre selection
-            onChange={(e) => setFilters(prev => ({
-              ...prev,
-              genres: e.target.value === 'all' ? [] : [e.target.value]
-            }))}
-            className="px-2 py-1 rounded-lg bg-[var(--background)] border border-[var(--accent)]/20 
-            text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none transition-colors min-w-[140px]"
-          >
-            <option value="all" className="bg-[var(--background)]">All Genres</option>
-            {GENRES.map(genre => (
-              <option 
-                key={genre.id} 
-                value={genre.id}
-                className="bg-[var(--background)]"
-              >
-                {genre.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filters.genres[0] || 'all'}
+          onChange={(e) => setFilters(prev => ({
+            ...prev,
+            genres: e.target.value === 'all' ? [] : [e.target.value]
+          }))}
+          className="px-6 py-2 rounded-full bg-[var(--background)]
+          border border-green-500/20 
+          text-[var(--foreground)] focus:border-green-500 focus:outline-none 
+          transition-colors text-sm min-w-[140px] hover:border-green-500/40 cursor-pointer appearance-none"
+        >
+          <option value="all" className="bg-[var(--background)]">Genre</option>
+          {GENRES.map(genre => (
+            <option key={genre.id} value={genre.id} className="bg-[var(--background)]">
+              {genre.name}
+            </option>
+          ))}
+        </select>
       </motion.div>
 
       {/* Single Content Section */}
