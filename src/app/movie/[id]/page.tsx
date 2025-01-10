@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { 
   FaFilm, FaCalendarAlt, FaClock, 
   FaTheaterMasks, FaBuilding, FaMoneyBillWave,
-  FaChartLine, FaGlobe, FaTrophy 
+  FaChartLine, FaGlobe, FaTrophy, FaPlay, FaUsers 
 } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
@@ -72,51 +72,53 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
   if (isLoading) return null; // Next.js will show the loading.tsx
   if (!movie) return <div>Movie not found</div>;
 
+  const backdropUrl = movie.backdrop_path 
+    ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}`
+    : null;
+
   return (
-    <main className="min-h-screen bg-[#0A0A0A]">
-      <DetailHero
-        title={movie.title}
-        backdrop_path={movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null}
-        poster_path={movie.poster_path ? `https://image.tmdb.org/t/p/original${movie.poster_path}` : null}
-        vote_average={movie.vote_average}
-        release_date={movie.release_date}
-        overview={movie.overview}
-        genres={movie.genres}
-        onGenreClick={(genreId) => router.push(`/?genre=${genreId}`)}
-      />
+    <main className="min-h-screen relative">
+      {/* Full-page backdrop */}
+      {backdropUrl && (
+        <div className="fixed inset-0 z-0">
+          <img
+            src={backdropUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/95" />
+          <div className="absolute inset-0 backdrop-blur-[1px]" />
+        </div>
+      )}
 
-      {/* Additional movie details can be added here */}
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="relative z-10">
+        {/* Updated header container to match TV show page */}
+        <div className="backdrop-blur-sm bg-black/30 border-b border-white/10">
+          <DetailHero
+            title={movie.title}
+            backdrop_path={null}
+            poster_path={movie.poster_path ? `https://image.tmdb.org/t/p/original${movie.poster_path}` : null}
+            vote_average={movie.vote_average}
+            release_date={movie.release_date}
+            overview={movie.overview}
+            genres={movie.genres}
+            onGenreClick={(genreId) => router.push(`/?genre=${genreId}`)}
+            className="bg-transparent p-6 md:p-8"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 p-6 md:p-8">
           {/* Left Column - Details */}
-          <div className="md:col-span-2 space-y-8">
-            {/* 1. Overview with Images - Most important context */}
-            <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-              <h2 className="text-2xl font-bold mb-6">Overview</h2>
-              <p className="text-[var(--foreground)]/70 text-lg leading-relaxed mb-6">{movie.overview}</p>
-              
-              {/* Add shots grid */}
-              {movie.images?.backdrops && (
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  {movie.images.backdrops.slice(0, 4).map((image: any, index: number) => (
-                    <div key={index} className="aspect-video rounded-lg overflow-hidden">
-                      <img
-                        src={`https://image.tmdb.org/t/p/w780${image.file_path}`}
-                        alt={`${movie.title} shot ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
+          <div className="md:col-span-3 space-y-6">
             {/* 2. Videos Section - High engagement content */}
             {movie.videos?.results && (
-              <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-4">Videos</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {movie.videos.results.slice(0, 4).map((video: any) => (
+              <section className="backdrop-blur-md bg-black/20 p-8 rounded-2xl border border-white/10 shadow-2xl hover:bg-black/25 transition-all duration-300">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <FaPlay className="text-emerald-400" />
+                  Videos
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {movie.videos.results.slice(0, 3).map((video: any) => (
                     <div key={video.id} className="aspect-video relative group">
                       <div className="absolute inset-0 bg-center bg-cover rounded-lg"
                            style={{ backgroundImage: `url(https://img.youtube.com/vi/${video.key}/maxresdefault.jpg)` }}>
@@ -143,16 +145,19 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
 
             {/* 3. Cast Section - Important for user recognition */}
             {movie.credits?.cast && (
-              <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-4">Cast</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <section className="backdrop-blur-md bg-black/20 p-8 rounded-2xl border border-white/10 shadow-2xl hover:bg-black/25 transition-all duration-300">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <FaUsers className="text-emerald-400" />
+                  Cast
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto">
                   {movie.credits.cast.slice(0, 8).map((actor: any) => (
                     <button 
                       key={actor.id}
                       onClick={() => handleSearch(actor.name)}
-                      className="text-center hover:opacity-80 transition-opacity"
+                      className="text-center hover:opacity-80 transition-opacity w-[120px]"
                     >
-                      <div className="w-full aspect-[2/3] relative rounded-lg overflow-hidden mb-2">
+                      <div className="w-[120px] h-[180px] relative rounded-lg overflow-hidden mb-2">
                         {actor.profile_path ? (
                           <img
                             src={`https://image.tmdb.org/t/p/w500${actor.profile_path}`}
@@ -163,81 +168,84 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
                           <div className="w-full h-full bg-[var(--background)]/50" />
                         )}
                       </div>
-                      <p className="font-medium hover:text-emerald-500 transition-colors">{actor.name}</p>
-                      <p className="text-sm text-[var(--foreground)]/70">{actor.character}</p>
+                      <p className="font-medium hover:text-emerald-500 transition-colors text-sm">{actor.name}</p>
+                      <p className="text-xs text-[var(--foreground)]/70">{actor.character}</p>
                     </button>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* 4. Director Section */}
-            {movie.credits?.crew?.find((person: CrewMember) => person.job === 'Director') && (
-              <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-4">Director</h2>
-                {movie.credits.crew
-                  .filter((person: CrewMember) => person.job === 'Director')
-                  .map((director: any) => (
-                    <button 
-                      key={director.id}
-                      onClick={() => handleSearch(director.name)}
-                      className="flex items-center gap-4 hover:opacity-80 transition-opacity"
-                    >
-                      <div className="w-20 h-20 relative rounded-lg overflow-hidden flex-shrink-0">
-                        {director.profile_path ? (
+            {/* 4. Key Crew Section */}
+            {movie.credits?.crew && (
+              <section className="backdrop-blur-md bg-black/20 p-8 rounded-2xl border border-white/10 shadow-2xl hover:bg-black/25 transition-all duration-300">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <FaTheaterMasks className="text-emerald-400" />
+                  Key Crew
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto">
+                  {movie.credits.crew
+                    .filter((person: any) => 
+                      ['Director', 'Producer', 'Executive Producer', 'Screenplay', 'Writer', 'Director of Photography', 'Original Music Composer']
+                      .includes(person.job) && person.profile_path
+                    )
+                    .slice(0, 8)
+                    .map((crewMember: any) => (
+                      <button 
+                        key={`${crewMember.id}-${crewMember.job}`}
+                        onClick={() => handleSearch(crewMember.name)}
+                        className="text-center hover:opacity-80 transition-opacity w-[120px]"
+                      >
+                        <div className="w-[120px] h-[180px] relative rounded-lg overflow-hidden mb-2">
                           <img
-                            src={`https://image.tmdb.org/t/p/w500${director.profile_path}`}
-                            alt={director.name}
-                            className="object-cover w-full h-full"
+                            src={`https://image.tmdb.org/t/p/w500${crewMember.profile_path}`}
+                            alt={crewMember.name}
+                            className="object-cover absolute inset-0 w-full h-full"
                           />
-                        ) : (
-                          <div className="w-full h-full bg-[var(--background)]/50 flex items-center justify-center">
-                            <FaTheaterMasks className="text-3xl text-emerald-500" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-lg hover:text-emerald-500 transition-colors">{director.name}</p>
-                        <p className="text-sm text-[var(--foreground)]/70">Director</p>
-                      </div>
-                    </button>
-                  ))}
+                        </div>
+                        <p className="font-medium hover:text-emerald-500 transition-colors text-sm">{crewMember.name}</p>
+                        <p className="text-xs text-[var(--foreground)]/70">{crewMember.job}</p>
+                      </button>
+                    ))}
+                </div>
               </section>
             )}
 
-            {/* 5. Awards Section */}
+            {/* 5. Awards Section - Update to 1x8 grid */}
             {movie.awards && movie.awards.length > 0 && (
-              <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-4">
+              <section className="backdrop-blur-md bg-black/20 p-8 rounded-2xl border border-white/10 shadow-2xl hover:bg-black/25 transition-all duration-300">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <FaTrophy className="text-emerald-400" />
                   Awards
                 </h2>
-                <div className="grid gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
                   {movie.awards.map((award: any, index: number) => (
-                    <div key={index} className="flex items-start gap-4 p-4 bg-[var(--background)]/50 rounded-lg">
-                      <div className="w-12 h-12 flex-shrink-0 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                    <div key={index} className="bg-[var(--background)]/50 rounded-lg p-4 flex flex-col items-center text-center">
+                      <div className="w-12 h-12 mb-3 bg-emerald-500/10 rounded-full flex items-center justify-center">
                         <FaTrophy className="text-2xl text-emerald-500" />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-lg">{award.name}</h3>
-                        <p className="text-[var(--foreground)]/70">{award.category}</p>
-                        <p className="text-sm text-emerald-500">{award.year}</p>
-                      </div>
+                      <h3 className="font-medium text-sm mb-1">{award.name}</h3>
+                      <p className="text-xs text-[var(--foreground)]/70 mb-1">{award.category}</p>
+                      <p className="text-xs text-emerald-500">{award.year}</p>
                     </div>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* 6. Similar Movies - Discovery */}
+            {/* 6. Similar Movies - Update to show similarity details */}
             {movie.similar?.results && (
-              <section className="bg-[#141414] p-6 rounded-xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-4">Similar Movies</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {movie.similar.results.slice(0, 4).map((similar: any) => (
+              <section className="backdrop-blur-md bg-black/20 p-8 rounded-2xl border border-white/10 shadow-2xl hover:bg-black/25 transition-all duration-300">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <FaFilm className="text-emerald-400" />
+                  Similar Movies
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+                  {movie.similar.results.slice(0, 8).map((similar: any) => (
                     <a 
                       href={`/movie/${similar.id}`} 
                       key={similar.id} 
-                      className="text-center hover:opacity-80 transition-opacity"
+                      className="text-center group"
                     >
                       <div className="w-full aspect-[2/3] relative rounded-lg overflow-hidden mb-2">
                         {similar.poster_path ? (
@@ -249,8 +257,27 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
                         ) : (
                           <div className="w-full h-full bg-[var(--background)]/50" />
                         )}
+                        {/* Updated Similarity Details Overlay */}
+                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity p-2 text-xs flex flex-col justify-center items-center text-center gap-1">
+                          {similar.similarity_details?.people_matches > 0 && (
+                            <div className="text-blue-400">
+                              {similar.similarity_details.people_matches} Shared Cast/Crew
+                            </div>
+                          )}
+                          {similar.similarity_details?.genre_matches > 0 && (
+                            <div className="text-purple-400">
+                              {similar.similarity_details.genre_matches} Similar Genres
+                            </div>
+                          )}
+                          {similar.similarity_details?.all_genres_match && (
+                            <div className="text-emerald-400">All Genres Match!</div>
+                          )}
+                          <div className="mt-2 font-semibold">
+                            Score: {Math.round(similar.similarity_score)}
+                          </div>
+                        </div>
                       </div>
-                      <p className="font-medium">{similar.title}</p>
+                      <p className="font-medium text-sm">{similar.title}</p>
                     </a>
                   ))}
                 </div>
@@ -259,7 +286,7 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {/* Right Column - Info */}
-          <div className="space-y-6 bg-[#141414] p-6 rounded-xl border border-white/10">
+          <div className="space-y-6 backdrop-blur-md bg-black/30 p-6 rounded-2xl border border-white/10 shadow-2xl sticky top-8 h-fit">
             {/* Status - Most important current info */}
             <InfoItem 
               title="Status" 

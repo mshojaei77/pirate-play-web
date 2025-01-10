@@ -199,8 +199,10 @@ export default function Home() {
             .sort((a, b) => {
               const dateA = new Date(a.metadata?.release_date || a.metadata?.first_air_date || 0).getTime();
               const dateB = new Date(b.metadata?.release_date || b.metadata?.first_air_date || 0).getTime();
-              return isNaN(dateB - dateA) ? 0 : dateB - dateA;
-          });
+              const popA = Number(a.metadata?.popularity) || 0;
+              const popB = Number(b.metadata?.popularity) || 0;
+              return (popB - popA) + (isNaN(dateB - dateA) ? 0 : (dateB - dateA) / 1000000);
+            });
         case 'popular':
           return [...filteredContent].sort((a, b) => {
             const aVote = Number(a.metadata?.vote_average) || 0;
