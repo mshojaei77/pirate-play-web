@@ -333,6 +333,9 @@ export default function Home() {
           <option value="ja" className="bg-[var(--background)]">Japanese</option>
           <option value="ko" className="bg-[var(--background)]">Korean</option>
           <option value="es" className="bg-[var(--background)]">Spanish</option>
+          <option value="fr" className="bg-[var(--background)]">French</option>
+          <option value="it" className="bg-[var(--background)]">Italian</option>
+          <option value="fa" className="bg-[var(--background)]">Persian</option>
         </select>
 
         <select

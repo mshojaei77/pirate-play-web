@@ -143,7 +143,7 @@ export async function getUpcomingMovies(page: number = 1) {
 export async function fetchAllContent(page: number = 1) {
   try {
     // Fetch 3 pages of content for more variety
-    const pages = [page, page + 1, page + 2];
+    const pages = [page, page + 1, page + 2, page + 3, page + 4, page + 5, page + 6, page + 7, page + 8, page + 9, page + 10,  page + 11,  page + 12];
     const allResponses = await Promise.all(pages.flatMap(pageNum => [
       fetch(`${BASE_URL}/movie/popular?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
       fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
