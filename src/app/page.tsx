@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Movie, TVShow } from '@/types/tmdb';
 import Image from 'next/image';
+import Link from 'next/link';
 import { FiSearch, FiFilter, FiPlay, FiPlus, FiStar, FiChevronLeft, FiChevronRight, FiTrendingUp, FiCalendar, FiDollarSign, FiUsers } from 'react-icons/fi';
-import { fetchAllContent } from '@/app/tmdb';
+import { fetchAllContent, searchMulti } from '@/app/tmdb_api_handler';
 import ContentSection from '@/components/ContentSection';
 
 // Add new sort options type
@@ -43,6 +44,12 @@ const GENRES = [
   { id: '37', name: 'Western' }
 ];
 
+// Add this utility function at the top of your file
+const ensureNumber = (value: any): string => {
+  const num = Number(value);
+  return isNaN(num) ? '0' : num.toString();
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
   const [isLoading, setIsLoading] = useState(true);
@@ -56,12 +63,28 @@ export default function Home() {
 
   // Add new filter state
   const [filters, setFilters] = useState<FilterOptions>({
-    yearRange: { start: 1900, end: new Date().getFullYear() },
-    ratingRange: { min: 0, max: 10 },
-    votesRange: { min: 0, max: 1000000 },
+    yearRange: { 
+      start: 1900, 
+      end: new Date().getFullYear() 
+    },
+    ratingRange: { 
+      min: 0, 
+      max: 10 
+    },
+    votesRange: { 
+      min: 0, 
+      max: 1000000 
+    },
     genres: [],
     language: 'all'
   });
+
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 42; 
+
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const loadContent = async () => {
@@ -78,6 +101,36 @@ export default function Home() {
 
     loadContent();
   }, [activeTab]);
+
+  // Add debounced search function
+  useEffect(() => {
+    const searchTimeout = setTimeout(async () => {
+      if (searchQuery.trim()) {
+        setIsSearching(true);
+        setSortOption('rating');
+        try {
+          const results = await searchMulti(searchQuery);
+          setSearchResults(results.results.map((item: any) => ({
+            ...item,
+            metadata: {
+              ...item,
+              backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
+              poster_path: item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : null,
+            }
+          })));
+        } catch (error) {
+          console.error('Search error:', error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+        setSortOption('trending');
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimeout);
+  }, [searchQuery]);
 
   // Add this function before getSortedContent
   const applyFilters = (content: any[]) => {
@@ -106,43 +159,113 @@ export default function Home() {
   };
 
   const getSortedContent = () => {
-    if (!allContent) return [];
+    if (!allContent) return { items: [], totalItems: 0 };
     
-    const content = activeTab === 'movies' 
-      ? allContent.movies 
-      : allContent.tvShows;
+    // If there's a search query, use search results instead
+    const content = searchQuery.trim()
+      ? searchResults
+      : activeTab === 'movies' 
+        ? allContent.movies 
+        : allContent.tvShows;
 
     // Apply filters first
     const filteredContent = applyFilters(content);
 
-    switch (sortOption) {
-      case 'trending':
-        return [...filteredContent].sort((a, b) => 
-          (b.metadata?.popularity || 0) - (a.metadata?.popularity || 0)
-        );
-      case 'popular':
-        return [...filteredContent].sort((a, b) => 
-          (b.metadata?.vote_average || 0) - (a.metadata?.vote_average || 0)
-        );
-      case 'rating':
-        return [...filteredContent].sort((a, b) => {
-          const aRating = a.metadata?.vote_average * Math.log10(a.metadata?.vote_count + 1) || 0;
-          const bRating = b.metadata?.vote_average * Math.log10(b.metadata?.vote_count + 1) || 0;
-          return bRating - aRating;
-        });
-      case 'releaseDate':
-        return [...filteredContent].sort((a, b) => {
-          const dateA = new Date(a.metadata?.release_date || a.metadata?.first_air_date || 0);
-          const dateB = new Date(b.metadata?.release_date || b.metadata?.first_air_date || 0);
-          return dateB.getTime() - dateA.getTime();
-        });
-      case 'runtime':
-        return [...filteredContent].sort((a, b) => 
-          (b.metadata?.runtime || 0) - (a.metadata?.runtime || 0)
-        );
-      default:
-        return filteredContent;
+    // Sort the filtered content
+    const sortedContent = (() => {
+      switch (sortOption) {
+        case 'trending':
+          return [...filteredContent].sort((a, b) => {
+            const aPopularity = Number(a.metadata?.popularity) || 0;
+            const bPopularity = Number(b.metadata?.popularity) || 0;
+            return (isNaN(bPopularity) ? 0 : bPopularity) - (isNaN(aPopularity) ? 0 : aPopularity);
+          });
+        case 'popular':
+          return [...filteredContent].sort((a, b) => {
+            const aVote = Number(a.metadata?.vote_average) || 0;
+            const bVote = Number(b.metadata?.vote_average) || 0;
+            return (isNaN(bVote) ? 0 : bVote) - (isNaN(aVote) ? 0 : aVote);
+          });
+        case 'rating':
+          return [...filteredContent].sort((a, b) => {
+            const aCount = Number(a.metadata?.vote_count) || 0;
+            const bCount = Number(b.metadata?.vote_count) || 0;
+            const aAvg = Number(a.metadata?.vote_average) || 0;
+            const bAvg = Number(b.metadata?.vote_average) || 0;
+            const aRating = (isNaN(aAvg) ? 0 : aAvg) * Math.log10((isNaN(aCount) ? 0 : aCount) + 1);
+            const bRating = (isNaN(bAvg) ? 0 : bAvg) * Math.log10((isNaN(bCount) ? 0 : bCount) + 1);
+            return bRating - aRating;
+          });
+        case 'releaseDate':
+          return [...filteredContent].sort((a, b) => {
+            const dateA = new Date(a.metadata?.release_date || a.metadata?.first_air_date || 0).getTime();
+            const dateB = new Date(b.metadata?.release_date || b.metadata?.first_air_date || 0).getTime();
+            return isNaN(dateB - dateA) ? 0 : dateB - dateA;
+          });
+        case 'runtime':
+          return [...filteredContent].sort((a, b) => {
+            const aRuntime = Number(a.metadata?.runtime) || 0;
+            const bRuntime = Number(b.metadata?.runtime) || 0;
+            return (isNaN(bRuntime) ? 0 : bRuntime) - (isNaN(aRuntime) ? 0 : aRuntime);
+          });
+        default:
+          return filteredContent;
+      }
+    })();
+
+    // Calculate pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedItems = sortedContent.slice(startIndex, startIndex + itemsPerPage);
+    
+    return {
+      items: paginatedItems,
+      totalItems: sortedContent.length
+    };
+  };
+
+  // Add this useEffect to handle URL search parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('searchQuery');
+    const genre = urlParams.get('genre');
+    
+    if (query) {
+      setSearchQuery(query);
     }
+    
+    if (genre) {
+      setFilters(prev => ({
+        ...prev,
+        genres: [genre]
+      }));
+      
+      // Optional: Scroll to the genre filter
+      const filterSection = document.querySelector('.filter-controls');
+      filterSection?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
+  // Add this function before the return statement
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setSortOption('trending');
+    setCurrentPage(1);
+    setFilters({
+      yearRange: { 
+        start: 1900, 
+        end: new Date().getFullYear() 
+      },
+      ratingRange: { 
+        min: 0, 
+        max: 10 
+      },
+      votesRange: { 
+        min: 0, 
+        max: 1000000 
+      },
+      genres: [],
+      language: 'all'
+    });
   };
 
   return (
@@ -154,16 +277,28 @@ export default function Home() {
         className="flex flex-col md:flex-row justify-between items-center gap-2 mb-8"
       >
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <Image
-            src="/parrot.png"
-            alt="Pirate Play Logo"
-            width={60}
-            height={60}
-            className="hidden md:block"
-          />
-          <h1 className="text-3xl md:text-4xl font-bold gradient-text">
-            Pirate Play
-          </h1>
+          <Link 
+            href="/" 
+            className="flex items-center gap-2"
+            onClick={(e) => {
+              // Only reset if we're already on the home page
+              if (window.location.pathname === '/') {
+                e.preventDefault();
+                resetAllFilters();
+              }
+            }}
+          >
+            <Image
+              src="/parrot.png"
+              alt="Pirate Play Logo"
+              width={60}
+              height={60}
+              className="hidden md:block"
+            />
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text">
+              Pirate Play
+            </h1>
+          </Link>
         </div>
 
         <div className="relative flex-1 max-w-2xl">
@@ -175,6 +310,11 @@ export default function Home() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {isSearching && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[var(--accent)]"></div>
+            </div>
+          )}
         </div>
 
         <motion.button
@@ -260,11 +400,17 @@ export default function Home() {
             type="number"
             min="1900"
             max={new Date().getFullYear()}
-            value={filters.yearRange.start}
-            onChange={(e) => setFilters(prev => ({
-              ...prev,
-              yearRange: { ...prev.yearRange, start: parseInt(e.target.value) }
-            }))}
+            value={ensureNumber(filters.yearRange.start)}
+            onChange={(e) => {
+              const newValue = parseInt(e.target.value);
+              setFilters(prev => ({
+                ...prev,
+                yearRange: { 
+                  ...prev.yearRange, 
+                  start: isNaN(newValue) ? 1900 : newValue 
+                }
+              }));
+            }}
             className="w-20 px-4 py-2 bg-transparent
             text-[var(--foreground)] focus:outline-none
             transition-colors text-sm"
@@ -290,31 +436,31 @@ export default function Home() {
         {/* Rating Range */}
         <div className="flex items-center bg-[var(--background)] border border-green-500/20 rounded-full hover:border-green-500/40 transition-colors">
           <select
-            value={filters.ratingRange.min}
+            value={ensureNumber(filters.ratingRange.min)}
             onChange={(e) => setFilters(prev => ({
               ...prev,
-              ratingRange: { ...prev.ratingRange, min: parseInt(e.target.value) }
+              ratingRange: { ...prev.ratingRange, min: Number(e.target.value) }
             }))}
             className="w-24 px-4 py-2 bg-transparent
             text-[var(--foreground)] focus:outline-none
             transition-colors text-sm cursor-pointer appearance-none"
           >
             {[...Array(11)].map((_, i) => (
-              <option key={i} value={i} className="bg-[var(--background)]">{i} ★</option>
+              <option key={i} value={i.toString()} className="bg-[var(--background)]">{i} ★</option>
             ))}
           </select>
           <select
-            value={filters.ratingRange.max}
+            value={ensureNumber(filters.ratingRange.max)}
             onChange={(e) => setFilters(prev => ({
               ...prev,
-              ratingRange: { ...prev.ratingRange, max: parseInt(e.target.value) }
+              ratingRange: { ...prev.ratingRange, max: Number(e.target.value) }
             }))}
             className="w-24 px-4 py-2 bg-transparent
             text-[var(--foreground)] focus:outline-none
             transition-colors text-sm cursor-pointer appearance-none"
           >
             {[...Array(11)].map((_, i) => (
-              <option key={i} value={i} className="bg-[var(--background)]">★ {i}</option>
+              <option key={i} value={i.toString()} className="bg-[var(--background)]">★ {i}</option>
             ))}
           </select>
         </div>
@@ -339,10 +485,10 @@ export default function Home() {
         </select>
 
         <select
-          value={filters.votesRange.min}
+          value={ensureNumber(filters.votesRange.min)}
           onChange={(e) => setFilters(prev => ({
             ...prev,
-            votesRange: { ...prev.votesRange, min: parseInt(e.target.value) }
+            votesRange: { ...prev.votesRange, min: parseInt(e.target.value) || 0 }
           }))}
           className="px-6 py-2 rounded-full bg-[var(--background)]
           border border-green-500/20 
@@ -351,8 +497,8 @@ export default function Home() {
         >
           <option value="0" className="bg-[var(--background)]">Min Votes</option>
           {[1, 2, 3, 4, 5, 10, 15, 20, 25].map((k) => (
-            <option key={k} value={k * 1000} className="bg-[var(--background)]">
-              {k}k+
+            <option key={k} value={String(k * 1000)} className="bg-[var(--background)]">
+              {`${k}k+`}
             </option>
           ))}
         </select>
@@ -370,26 +516,68 @@ export default function Home() {
         >
           <option value="all" className="bg-[var(--background)]">Genre</option>
           {GENRES.map(genre => (
-            <option key={genre.id} value={genre.id} className="bg-[var(--background)]">
+            <option 
+              key={genre.id} 
+              value={genre.id} 
+              className="bg-[var(--background)]"
+              selected={filters.genres.includes(genre.id)}
+            >
               {genre.name}
             </option>
           ))}
         </select>
       </motion.div>
 
-      {/* Single Content Section */}
+      {/* Content Section */}
       <ContentSection
-        title={`${sortOption === 'trending' 
-          ? 'Trending'
-          : sortOption === 'rating'
-          ? 'Top'
-          : sortOption === 'releaseDate'
-          ? 'Recent'
-          : 'Trending'} ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
-        isLoading={isLoading}
+        title={searchQuery.trim() 
+          ? `Search Results for "${searchQuery}"`
+          : `${sortOption === 'trending' 
+              ? 'Trending'
+              : sortOption === 'rating'
+              ? 'Top'
+              : sortOption === 'releaseDate'
+              ? 'Recent'
+              : 'Trending'} ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+        isLoading={isLoading || isSearching}
         activeTab={activeTab}
-        content={getSortedContent()}
+        content={getSortedContent().items}
       />
+
+      {/* Add pagination controls at the bottom */}
+      <div className="flex justify-center gap-4 mt-8 mb-4">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+          className={`px-4 py-2 rounded-full font-medium ${
+            currentPage === 1 
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'gradient-bg hover:opacity-90'
+          }`}
+        >
+          <FiChevronLeft className="inline" /> Previous
+        </motion.button>
+        
+        <span className="flex items-center px-4 py-2">
+          Page {currentPage} of {Math.ceil(getSortedContent().totalItems / itemsPerPage)}
+        </span>
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setCurrentPage(prev => prev + 1)}
+          disabled={currentPage >= Math.ceil(getSortedContent().totalItems / itemsPerPage)}
+          className={`px-4 py-2 rounded-full font-medium ${
+            currentPage >= Math.ceil(getSortedContent().totalItems / itemsPerPage)
+              ? 'opacity-50 cursor-not-allowed'
+              : 'gradient-bg hover:opacity-90'
+          }`}
+        >
+          Next <FiChevronRight className="inline" />
+        </motion.button>
+      </div>
     </main>
   );
 }

@@ -3,78 +3,152 @@ import { TrendingMoviesResponse, TrendingTVShowsResponse } from '@/types/tmdb';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
-export async function fetchTrendingContent() {
-  try {
-    const [
-      trendingMoviesRes,
-      trendingTVRes,
-      animeRes,
-      popularMoviesThisYearRes,
-      popularTVThisYearRes,
-      allTimeMoviesRes, 
-      allTimeTVRes,
-      upcomingMoviesRes,
-      upcomingTVRes
-    ] = await Promise.all([
-      // Trending this week
-      fetch(`${BASE_URL}/trending/movie/week?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}`),
-      fetch(`${BASE_URL}/trending/tv/week?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}`),
-      fetch(`${BASE_URL}/discover/tv?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}&sort_by=popularity.asc&with_keywords=210024`),
-      
-      // Popular this year
-      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=popularity.desc&primary_release_year=${new Date().getFullYear()}`),
-      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&sort_by=popularity.desc&first_air_date_year=${new Date().getFullYear()}`),
-      
-      // Most popular all time
-      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=vote_average.desc&vote_count.gte=1000`),
-      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&sort_by=vote_average.desc&vote_count.gte=1000`),
-      
-      // Upcoming
-      fetch(`${BASE_URL}/movie/upcoming?api_key=${API_KEY}`),
-      fetch(`${BASE_URL}/tv/on_the_air?api_key=${API_KEY}`),
-    ]);
+async function searchPeople(query: string): Promise<any> {
+  const response = await fetch(
+    `${BASE_URL}/search/person?api_key=${API_KEY}&query=${encodeURIComponent(query)}`
+  );
+  return await response.json();
+}
 
-    const trendingMovies: TrendingMoviesResponse = await trendingMoviesRes.json();
-    const trendingTV: TrendingTVShowsResponse = await trendingTVRes.json();
-    const anime: TrendingTVShowsResponse = await animeRes.json();
-    const popularMoviesThisYear = await popularMoviesThisYearRes.json();
-    const popularTVThisYear = await popularTVThisYearRes.json();
-    const allTimeMovies = await allTimeMoviesRes.json();
-    const allTimeTV = await allTimeTVRes.json();
-    const upcomingMovies = await upcomingMoviesRes.json();
-    const upcomingTV = await upcomingTVRes.json();
-
-    return {
-      trending: {
-        movies: trendingMovies.results,
-        tvShows: trendingTV.results,
-        anime: anime.results
-      },
-      thisYear: {
-        movies: popularMoviesThisYear.results,
-        tvShows: popularTVThisYear.results
-      },
-      allTime: {
-        movies: allTimeMovies.results,
-        tvShows: allTimeTV.results
-      },
-      upcoming: {
-        movies: upcomingMovies.results,
-        tvShows: upcomingTV.results
-      }
-    };
-  } catch (error) {
-    console.error('Error fetching content:', error);
-    throw error;
-  }
+async function getPersonCredits(personId: number): Promise<any> {
+  const [castMovies, castTV] = await Promise.all([
+    fetch(`${BASE_URL}/person/${personId}/movie_credits?api_key=${API_KEY}`),
+    fetch(`${BASE_URL}/person/${personId}/tv_credits?api_key=${API_KEY}`)
+  ]);
+  
+  return {
+    movies: await castMovies.json(),
+    tv: await castTV.json()
+  };
 }
 
 export async function searchMulti(query: string, page: number = 1) {
   try {
-    const response = await fetch(
-      `${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}&page=${page}`
+    // Perform parallel searches for content and people
+    const [contentResponse, peopleData] = await Promise.all([
+      fetch(
+        `${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`
+      ).then(res => res.json()),
+      searchPeople(query)  // This already returns parsed JSON
+    ]);
+
+    // Get credits for the top 3 most popular people found
+    const relevantPeople = peopleData.results
+      ?.sort((a: any, b: any) => b.popularity - a.popularity)
+      ?.slice(0, 3) || [];
+
+    const peopleCredits = await Promise.all(
+      relevantPeople.map((person: any) => getPersonCredits(person.id))
     );
-    return await response.json();
+
+    // Process people's credits
+    const castContent: any[] = [];
+    peopleCredits.forEach((credits, index) => {
+      const person = relevantPeople[index];
+      
+      // Add movies where they were cast or crew
+      credits.movies.cast?.forEach((movie: any) => {
+        if (movie.poster_path) {
+          castContent.push({
+            ...movie,
+            media_type: 'movie',
+            metadata: {
+              ...movie,
+              title: movie.title,
+              release_date: movie.release_date,
+              backdrop_path: movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null,
+              poster_path: movie.poster_path ? `https://image.tmdb.org/t/p/original${movie.poster_path}` : null,
+              cast_info: `Featuring ${person.name}`,
+              role: movie.character || 'Cast'
+            }
+          });
+        }
+      });
+
+      credits.movies.crew?.forEach((movie: any) => {
+        if (movie.poster_path && movie.job === 'Director') {
+          castContent.push({
+            ...movie,
+            media_type: 'movie',
+            metadata: {
+              ...movie,
+              title: movie.title,
+              release_date: movie.release_date,
+              backdrop_path: movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null,
+              poster_path: movie.poster_path ? `https://image.tmdb.org/t/p/original${movie.poster_path}` : null,
+              cast_info: `Directed by ${person.name}`,
+              role: 'Director'
+            }
+          });
+        }
+      });
+
+      // Add TV shows where they were cast or crew
+      credits.tv.cast?.forEach((show: any) => {
+        if (show.poster_path) {
+          castContent.push({
+            ...show,
+            media_type: 'tv',
+            metadata: {
+              ...show,
+              name: show.name,
+              first_air_date: show.first_air_date,
+              backdrop_path: show.backdrop_path ? `https://image.tmdb.org/t/p/original${show.backdrop_path}` : null,
+              poster_path: show.poster_path ? `https://image.tmdb.org/t/p/original${show.poster_path}` : null,
+              cast_info: `Featuring ${person.name}`,
+              role: show.character || 'Cast'
+            }
+          });
+        }
+      });
+
+      credits.tv.crew?.forEach((show: any) => {
+        if (show.poster_path && (show.job === 'Director' || show.job === 'Executive Producer')) {
+          castContent.push({
+            ...show,
+            media_type: 'tv',
+            metadata: {
+              ...show,
+              name: show.name,
+              first_air_date: show.first_air_date,
+              backdrop_path: show.backdrop_path ? `https://image.tmdb.org/t/p/original${show.backdrop_path}` : null,
+              poster_path: show.poster_path ? `https://image.tmdb.org/t/p/original${show.poster_path}` : null,
+              cast_info: `${show.job} ${person.name}`,
+              role: show.job
+            }
+          });
+        }
+      });
+    });
+
+    // Filter and combine results
+    const directResults = contentResponse.results.filter((item: any) => 
+      item.media_type !== 'person' && item.poster_path
+    ).map((item: any) => ({
+      ...item,
+      metadata: {
+        ...item,
+        backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
+        poster_path: item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : null,
+      }
+    }));
+
+    // Remove duplicates and combine results
+    const allResults = [...directResults, ...castContent];
+    const uniqueResults = Array.from(
+      new Map(allResults.map(item => [item.id, item])).values()
+    );
+
+    // Sort results by popularity
+    const sortedResults = uniqueResults.sort((a, b) => 
+      (b.popularity || 0) - (a.popularity || 0)
+    );
+
+    return {
+      ...contentResponse,
+      results: sortedResults
+    };
+
   } catch (error) {
     console.error('Error searching content:', error);
     throw error;
@@ -83,10 +157,28 @@ export async function searchMulti(query: string, page: number = 1) {
 
 export async function getMovieDetails(movieId: number) {
   try {
-    const response = await fetch(
-      `${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&append_to_response=credits,videos,similar`
-    );
-    return await response.json();
+    const [details, external] = await Promise.all([
+      fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&append_to_response=credits,videos,similar`),
+      fetch(`${BASE_URL}/movie/${movieId}/external_ids?api_key=${API_KEY}`)
+    ]);
+    
+    const movieData = await details.json();
+    const externalData = await external.json();
+    
+    // Add mock awards data (since TMDB doesn't provide awards directly)
+    // In a real app, you might want to fetch this from another API
+    if (movieData.vote_average >= 8) {
+      movieData.awards = [
+        { name: "Academy Award", category: "Best Picture", year: new Date(movieData.release_date).getFullYear() },
+        { name: "Golden Globe", category: "Best Motion Picture", year: new Date(movieData.release_date).getFullYear() }
+      ];
+    } else if (movieData.vote_average >= 7) {
+      movieData.awards = [
+        { name: "Critics' Choice", category: "Best Film", year: new Date(movieData.release_date).getFullYear() }
+      ];
+    }
+    
+    return { ...movieData, external_ids: externalData };
   } catch (error) {
     console.error('Error fetching movie details:', error);
     throw error;
@@ -95,64 +187,43 @@ export async function getMovieDetails(movieId: number) {
 
 export async function getTVShowDetails(tvId: number) {
   try {
-    const response = await fetch(
-      `${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&append_to_response=credits,videos,similar`
-    );
-    return await response.json();
+    const [details, external] = await Promise.all([
+      fetch(`${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&append_to_response=credits,videos,similar`),
+      fetch(`${BASE_URL}/tv/${tvId}/external_ids?api_key=${API_KEY}`)
+    ]);
+    
+    const tvData = await details.json();
+    const externalData = await external.json();
+    
+    // Add mock awards data
+    if (tvData.vote_average >= 8) {
+      tvData.awards = [
+        { name: "Emmy Award", category: "Outstanding Drama Series", year: new Date(tvData.first_air_date).getFullYear() },
+        { name: "Golden Globe", category: "Best Television Series", year: new Date(tvData.first_air_date).getFullYear() }
+      ];
+    } else if (tvData.vote_average >= 7) {
+      tvData.awards = [
+        { name: "Critics' Choice", category: "Best Drama Series", year: new Date(tvData.first_air_date).getFullYear() }
+      ];
+    }
+    
+    return { ...tvData, external_ids: externalData };
   } catch (error) {
     console.error('Error fetching TV show details:', error);
     throw error;
   }
 }
 
-export async function getPopularMovies(page: number = 1) {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/movie/popular?api_key=${API_KEY}&page=${page}`
-    );
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching popular movies:', error);
-    throw error;
-  }
-}
 
-export async function getPopularTVShows(page: number = 1) {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/tv/popular?api_key=${API_KEY}&page=${page}`
-    );
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching popular TV shows:', error);
-    throw error;
-  }
-}
-
-export async function getUpcomingMovies(page: number = 1) {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=${page}`
-    );
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching upcoming movies:', error);
-    throw error;
-  }
-}
 export async function fetchAllContent(page: number = 1) {
   try {
-    // Fetch 3 pages of content for more variety
-    const pages = [page, page + 1, page + 2, page + 3, page + 4, page + 5, page + 6, page + 7, page + 8, page + 9, page + 10,  page + 11,  page + 12];
+    const pages = [];
+    for (let i = 0; i < 13; i++) {
+      pages.push(page + i);
+    }
     const allResponses = await Promise.all(pages.flatMap(pageNum => [
-      fetch(`${BASE_URL}/movie/popular?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/tv/on_the_air?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/movie/top_rated?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/tv/top_rated?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=${pageNum}&language=en-US`),
-      fetch(`${BASE_URL}/tv/airing_today?api_key=${API_KEY}&page=${pageNum}&language=en-US`)
+      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&page=${pageNum}`),
+      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&page=${pageNum}`)
     ]));
 
     // Check if any requests failed
