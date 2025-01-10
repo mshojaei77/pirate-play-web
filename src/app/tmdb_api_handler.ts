@@ -22,8 +22,84 @@ async function getPersonCredits(personId: number): Promise<any> {
   };
 }
 
+async function searchByAward(awardQuery: string): Promise<any> {
+  try {
+    // Get a large batch of highly-rated content since these are most likely to have awards
+    const [movieResponse, tvResponse] = await Promise.all([
+      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&vote_average.gte=7&sort_by=vote_average.desc`),
+      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&vote_average.gte=7&sort_by=vote_average.desc`)
+    ]);
+
+    const movies = await movieResponse.json();
+    const tvShows = await tvResponse.json();
+
+    // Get detailed info for each item to check awards
+    const movieDetails = await Promise.all(
+      movies.results.map((movie: any) => getMovieDetails(movie.id))
+    );
+    const tvDetails = await Promise.all(
+      tvShows.results.map((show: any) => getTVShowDetails(show.id))
+    );
+
+    // Filter content by matching award query
+    const awardRegex = new RegExp(awardQuery, 'i');
+    const matchingMovies = movieDetails.filter(movie => 
+      movie.awards?.some((award: any) => 
+        awardRegex.test(award.name) || awardRegex.test(award.category)
+      )
+    );
+    const matchingTVShows = tvDetails.filter(show => 
+      show.awards?.some((award: any) => 
+        awardRegex.test(award.name) || awardRegex.test(award.category)
+      )
+    );
+
+    return {
+      results: [
+        ...matchingMovies.map(item => ({
+          ...item,
+          media_type: 'movie',
+          metadata: {
+            ...item,
+            backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
+            poster_path: item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : null,
+            matching_awards: item.awards.filter((award: any) => 
+              awardRegex.test(award.name) || awardRegex.test(award.category)
+            )
+          }
+        })),
+        ...matchingTVShows.map(item => ({
+          ...item,
+          media_type: 'tv',
+          metadata: {
+            ...item,
+            backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
+            poster_path: item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : null,
+            matching_awards: item.awards.filter((award: any) => 
+              awardRegex.test(award.name) || awardRegex.test(award.category)
+            )
+          }
+        }))
+      ].sort((a, b) => b.vote_average - a.vote_average)
+    };
+  } catch (error) {
+    console.error('Error searching by award:', error);
+    throw error;
+  }
+}
+
 export async function searchMulti(query: string, page: number = 1) {
   try {
+    // Check if query looks like an award search
+    const awardKeywords = ['oscar', 'academy award', 'golden globe', 'emmy', 'critics choice'];
+    const isAwardSearch = awardKeywords.some(keyword => 
+      query.toLowerCase().includes(keyword)
+    );
+
+    if (isAwardSearch) {
+      return await searchByAward(query);
+    }
+
     // Perform parallel searches for content and people
     const [contentResponse, peopleData] = await Promise.all([
       fetch(

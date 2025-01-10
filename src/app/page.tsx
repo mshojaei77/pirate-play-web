@@ -21,8 +21,8 @@ type FilterOptions = {
   language: string;
 };
 
-// Add this near the top of your file with other constants
-const GENRES = [
+// Update the GENRES constant to separate movie and TV genres
+const MOVIE_GENRES = [
   { id: '28', name: 'Action' },
   { id: '12', name: 'Adventure' },
   { id: '16', name: 'Animation' },
@@ -41,6 +41,25 @@ const GENRES = [
   { id: '10770', name: 'TV Movie' },
   { id: '53', name: 'Thriller' },
   { id: '10752', name: 'War' },
+  { id: '37', name: 'Western' }
+];
+
+const TV_GENRES = [
+  { id: '10759', name: 'Action & Adventure' },
+  { id: '16', name: 'Animation' },
+  { id: '35', name: 'Comedy' },
+  { id: '80', name: 'Crime' },
+  { id: '99', name: 'Documentary' },
+  { id: '18', name: 'Drama' },
+  { id: '10751', name: 'Family' },
+  { id: '10762', name: 'Kids' },
+  { id: '9648', name: 'Mystery' },
+  { id: '10763', name: 'News' },
+  { id: '10764', name: 'Reality' },
+  { id: '10765', name: 'Sci-Fi & Fantasy' },
+  { id: '10766', name: 'Soap' },
+  { id: '10767', name: 'Talk' },
+  { id: '10768', name: 'War & Politics' },
   { id: '37', name: 'Western' }
 ];
 
@@ -175,10 +194,12 @@ export default function Home() {
     const sortedContent = (() => {
       switch (sortOption) {
         case 'trending':
-          return [...filteredContent].sort((a, b) => {
-            const aPopularity = Number(a.metadata?.popularity) || 0;
-            const bPopularity = Number(b.metadata?.popularity) || 0;
-            return (isNaN(bPopularity) ? 0 : bPopularity) - (isNaN(aPopularity) ? 0 : aPopularity);
+          return [...filteredContent]
+            .filter(item => Number(item.metadata?.vote_count) >= 100)
+            .sort((a, b) => {
+              const dateA = new Date(a.metadata?.release_date || a.metadata?.first_air_date || 0).getTime();
+              const dateB = new Date(b.metadata?.release_date || b.metadata?.first_air_date || 0).getTime();
+              return isNaN(dateB - dateA) ? 0 : dateB - dateA;
           });
         case 'popular':
           return [...filteredContent].sort((a, b) => {
@@ -337,7 +358,13 @@ export default function Home() {
                 ? 'gradient-bg text-[var(--foreground)]'
                 : 'bg-[var(--background)] text-[var(--foreground)] opacity-70 hover:opacity-100'
             }`}
-            onClick={() => setActiveTab('movies')}
+            onClick={() => {
+              setActiveTab('movies');
+              setFilters(prev => ({
+                ...prev,
+                genres: [] // Reset genres when switching to movies
+              }));
+            }}
           >
             Movies
           </motion.button>
@@ -349,7 +376,13 @@ export default function Home() {
                 ? 'gradient-bg text-[var(--foreground)]'
                 : 'bg-[var(--background)] text-[var(--foreground)] opacity-70 hover:opacity-100'
             }`}
-            onClick={() => setActiveTab('tv')}
+            onClick={() => {
+              setActiveTab('tv');
+              setFilters(prev => ({
+                ...prev,
+                genres: [] // Reset genres when switching to TV shows
+              }));
+            }}
           >
             TV Shows
           </motion.button>
@@ -496,6 +529,7 @@ export default function Home() {
           transition-colors text-sm min-w-[140px] hover:border-green-500/40 cursor-pointer appearance-none"
         >
           <option value="0" className="bg-[var(--background)]">Min Votes</option>
+          <option value="100" className="bg-[var(--background)]">100+</option>
           {[1, 2, 3, 4, 5, 10, 15, 20, 25].map((k) => (
             <option key={k} value={String(k * 1000)} className="bg-[var(--background)]">
               {`${k}k+`}
@@ -515,12 +549,11 @@ export default function Home() {
           transition-colors text-sm min-w-[140px] hover:border-green-500/40 cursor-pointer appearance-none"
         >
           <option value="all" className="bg-[var(--background)]">Genre</option>
-          {GENRES.map(genre => (
+          {(activeTab === 'movies' ? MOVIE_GENRES : TV_GENRES).map(genre => (
             <option 
               key={genre.id} 
               value={genre.id} 
               className="bg-[var(--background)]"
-              selected={filters.genres.includes(genre.id)}
             >
               {genre.name}
             </option>

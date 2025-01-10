@@ -117,12 +117,24 @@ export default function MoviePage({ params }: { params: Promise<{ id: string }> 
                 <h2 className="text-2xl font-bold mb-4">Videos</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {movie.videos.results.slice(0, 4).map((video: any) => (
-                    <div key={video.id} className="aspect-video">
-                      <iframe
-                        className="w-full h-full rounded-lg"
-                        src={`https://www.youtube.com/embed/${video.key}`}
-                        allowFullScreen
-                      />
+                    <div key={video.id} className="aspect-video relative group">
+                      <div className="absolute inset-0 bg-center bg-cover rounded-lg"
+                           style={{ backgroundImage: `url(https://img.youtube.com/vi/${video.key}/maxresdefault.jpg)` }}>
+                        <div className="absolute inset-0 bg-black/50 group-hover:bg-black/70 transition-colors" />
+                      </div>
+                      <a
+                        href={`https://www.youtube.com/watch?v=${video.key}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-600 group-hover:bg-red-700 transition-colors">
+                          <div className="w-0 h-0 border-t-8 border-t-transparent border-l-[16px] border-l-white border-b-8 border-b-transparent ml-1" />
+                        </div>
+                      </a>
+                      <div className="absolute bottom-0 left-0 right-0 p-4 text-sm bg-gradient-to-t from-black/80 to-transparent">
+                        {video.name}
+                      </div>
                     </div>
                   ))}
                 </div>
